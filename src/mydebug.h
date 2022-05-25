@@ -11,6 +11,7 @@
 		static AsyncServer _debugSocketServer(1504);
 		static AsyncClient* _debugSocketClient;
 		AcDataHandler _debugDataHandler = NULL;
+		std::function<void(void)> onTCPClient = NULL;
 	#endif
 	#define DEBUGLOG(...) _debuglog(__VA_ARGS__)
 #else
@@ -65,6 +66,13 @@ static void _debuglog(const char *format, ...){
         free(temp);
 }
 
+static void DEBUGINIT(std::function<void(void)> onTCPClient){
+	#ifdef DEBUG_SOCKET
+		_onTCPClient = onTCPClient;
+	#endif
+	DEBUGINIT();
+}
+
 static void DEBUGINIT(){
 	#ifdef DEBUG_SERIAL
 		Serial.begin(115200);
@@ -79,6 +87,8 @@ static void DEBUGINIT(){
 						if (_debugDataHandler)
 							_debugSocketClient->onData(_debugDataHandler);
 						_debugSocketClient->write("Welcome new socket\n");
+						if (_onTCPClient)
+							_onTCPClient();
 					}, NULL);
 				_debugSocketServer.begin();
 				// DEBUGLOG("Debug socket ON\n");
