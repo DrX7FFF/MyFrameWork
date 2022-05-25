@@ -66,13 +66,6 @@ static void _debuglog(const char *format, ...){
         free(temp);
 }
 
-static void DEBUGINIT(std::function<void(void)> onTCPClient){
-	#ifdef DEBUG_SOCKET
-		_onTCPClient = onTCPClient;
-	#endif
-	DEBUGINIT();
-}
-
 static void DEBUGINIT(){
 	#ifdef DEBUG_SERIAL
 		Serial.begin(115200);
@@ -95,6 +88,13 @@ static void DEBUGINIT(){
 			},arduino_event_id_t::ARDUINO_EVENT_WIFI_READY);
 	#endif
 	_debugInitDone = true;
+}
+
+static void DEBUGINIT(std::function<void(void)> onTCPClient){
+	#ifdef DEBUG_SOCKET
+		_onTCPClient = onTCPClient;
+	#endif
+	DEBUGINIT();
 }
 
 static bool DEBUGHASCLIENT(){
