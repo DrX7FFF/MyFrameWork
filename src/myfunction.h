@@ -1,3 +1,6 @@
+#ifndef __MY_FUNCTION_H__
+#define __MY_FUNCTION_H__
+
 #include <Arduino.h>
 #include <WiFi.h>
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
@@ -14,3 +17,5 @@ void mySmartConfig(){
 		ESP.restart();
 	}
 }
+
+#endif // __MY_FUNCTION_H__
