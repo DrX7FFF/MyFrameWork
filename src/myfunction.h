@@ -3,7 +3,15 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
+
+#ifndef IPFILENAME
+#define IPFILENAME "IPConfig"
+#endif
+#define IP_KEY_LOCAL 	"local"
+#define IP_KEY_GATEWAY 	"gateway"
+#define IP_KEY_SUBNET	"subnet"
 
 
 // static void my_handler_got_ssid_passwd(void *arg, esp_event_base_t base, int32_t event_id, void *data)
@@ -51,6 +59,36 @@ void mySmartConfig(bool forceChannel = false){
 		}
 		ESP.restart();
 	}
+}
+
+bool loadIP(){
+	bool ret = false;
+	Preferences prefs;
+	if (prefs.begin(IPFILENAME,true)){
+		IPAddress localIP = prefs.getULong(IP_KEY_LOCAL, 0);
+		IPAddress gateway = prefs.getULong(IP_KEY_GATEWAY, 0);
+		IPAddress subnet = prefs.getULong(IP_KEY_SUBNET, 0);
+		if (localIP && gateway && subnet)
+			ret = WiFi.config(localIP,gateway,subnet);
+		prefs.end();
+	}
+	return ret;
+}
+
+void saveIP(){
+	Preferences prefs;
+	if (prefs.begin(IPFILENAME,true)){
+		prefs.putULong(IP_KEY_LOCAL, WiFi.localIP());
+		prefs.putULong(IP_KEY_GATEWAY, WiFi.gatewayIP());
+		prefs.putULong(IP_KEY_SUBNET,WiFi.subnetMask());
+		prefs.end();
+	}
+}
+
+void resetIP(){
+	Preferences prefs;
+	if (prefs.begin(IPFILENAME,true))
+		prefs.clear();
 }
 
 #endif // __MY_FUNCTION_H__
