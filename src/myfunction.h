@@ -77,7 +77,7 @@ bool loadIP(){
 
 void saveIP(){
 	Preferences prefs;
-	if (prefs.begin(IPFILENAME,true)){
+	if (prefs.begin(IPFILENAME,false)){
 		prefs.putULong(IP_KEY_LOCAL, WiFi.localIP());
 		prefs.putULong(IP_KEY_GATEWAY, WiFi.gatewayIP());
 		prefs.putULong(IP_KEY_SUBNET,WiFi.subnetMask());
@@ -87,7 +87,7 @@ void saveIP(){
 
 void resetIP(){
 	Preferences prefs;
-	if (prefs.begin(IPFILENAME,true))
+	if (prefs.begin(IPFILENAME,false))
 		prefs.clear();
 }
 
