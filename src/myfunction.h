@@ -62,6 +62,30 @@ void mySmartConfig(bool forceChannel = false){
 	}
 }
 
+bool myWifiBegin(uint32_t ConnectTimeOut = 20, uint32_t SmartConfigTimeOut = 60){
+	uint32_t mem;
+
+	DEBUGLOG("Wait WiFi for %d s\n", ConnectTimeOut);
+	WiFi.begin();
+	mem = millis();
+	while ((millis() - mem) < ConnectTimeOut*1000){
+		if (WiFi.isConnected())
+			return true;
+		delay(5);
+	}
+	
+	DEBUGLOG("Start SmartConfig for %ds\n", SmartConfigTimeOut);
+	WiFi.beginSmartConfig();
+	mem = millis();
+	while ((millis() - mem) < SmartConfigTimeOut*1000){
+		if (WiFi.smartConfigDone())
+			ESP.restart();
+		delay(5);
+	}
+
+	return false;
+}
+
 bool loadIP(){
 	bool ret = false;
 	Preferences prefs;
