@@ -3,8 +3,9 @@
 
 #include <Arduino.h>
 #include <WiFi.h>
-#include <mydebug.h>
+#include <esp_wps.h>
 #include <Preferences.h>
+#include <mydebug.h>
 #define ARRAY_LENGTH(array) (sizeof((array))/sizeof((array)[0]))
 
 #ifndef IPFILENAME
@@ -76,6 +77,9 @@ bool myWifiBegin(uint32_t ConnectTimeOut = 20, uint32_t SmartConfigTimeOut = 60)
 	
 	DEBUGLOG("Start SmartConfig for %ds\n", SmartConfigTimeOut);
 	WiFi.beginSmartConfig();
+//	bool res = WiFi.beginSmartConfig(smartconfig_type_t::SC_TYPE_ESPTOUCH);
+//	DEBUGLOG("Res : %s\n", res ? "OK" : "NOK");
+
 	mem = millis();
 	while ((millis() - mem) < SmartConfigTimeOut*1000){
 		if (WiFi.smartConfigDone())
@@ -84,6 +88,80 @@ bool myWifiBegin(uint32_t ConnectTimeOut = 20, uint32_t SmartConfigTimeOut = 60)
 	}
 
 	return false;
+}
+
+static esp_wps_config_t myWPSConfig = {.wps_type = WPS_TYPE_PBC};
+wifi_event_id_t myWPSWiFiEvent_ID;
+
+void myWPSStop() {
+	DEBUGLOG("myWPS : Stop WPS\n");
+	WiFi.removeEvent(myWPSWiFiEvent_ID);
+	myWPSWiFiEvent_ID = 0;
+	esp_wifi_wps_disable();
+}
+
+void myWPSWiFiEvent(WiFiEvent_t event, arduino_event_info_t info) {
+	switch (event) {
+		case ARDUINO_EVENT_WPS_ER_SUCCESS:
+		case ARDUINO_EVENT_WPS_ER_FAILED:
+		case ARDUINO_EVENT_WPS_ER_TIMEOUT:
+			// DEBUGLOG("myWPS : WiFi event %d\n", event);
+			// fin du WPS quelque soit la situation
+			myWPSStop();
+			WiFi.begin(); // à vérifier
+			if (event == ARDUINO_EVENT_WPS_ER_SUCCESS)
+				ESP.restart();
+			break;
+	}
+}
+
+esp_err_t myWPSStart() {
+	if (myWPSWiFiEvent_ID != 0)
+		return ESP_OK;
+	
+	DEBUGLOG("myWPS : Start WPS\n");
+	esp_err_t res;
+
+	WiFi.mode(WIFI_MODE_STA);
+	res = esp_wifi_wps_enable(&myWPSConfig);
+	if ( res != ESP_OK)
+		return res;
+
+	myWPSWiFiEvent_ID = WiFi.onEvent(myWPSWiFiEvent);
+	res = esp_wifi_wps_start(0);
+	if ( res != ESP_OK){
+		WiFi.removeEvent(myWPSWiFiEvent_ID);
+		myWPSWiFiEvent_ID = 0;
+		return res;
+	}
+	return ESP_OK;
+}
+
+void myWPSStartTask(void *arg) {
+	myWPSStop();
+	myWPSStart();
+	vTaskDelete( NULL );
+}
+
+void IRAM_ATTR myWifiWPSButton(){
+	static unsigned long memMillis = millis();
+	if (digitalRead(GPIO_NUM_0)){
+		if (millis()-memMillis > 5000)
+			xTaskCreate(myWPSStartTask, "WPSTask", 2048, NULL, 1, NULL);
+	}
+	else
+		memMillis = millis();
+}
+
+void myWifiBeginWPS(bool BtnBoot2WPS = true) {
+	if ((WiFi.begin() == WL_CONNECT_FAILED)) // Si aucune paramétrage
+		myWPSStart();
+	if (BtnBoot2WPS){
+		// pinMode(GPIO_NUM_0, INPUT_PULLUP);	// KO
+		// pinMode(GPIO_NUM_0, INPUT); 			// OK
+		gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
+		attachInterrupt(GPIO_NUM_0, myWifiWPSButton, CHANGE);
+	}
 }
 
 bool loadIP(){
