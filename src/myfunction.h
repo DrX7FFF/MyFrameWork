@@ -153,15 +153,17 @@ void IRAM_ATTR myWifiWPSButton(){
 		memMillis = millis();
 }
 
-void myWifiBeginWPS(bool BtnBoot2WPS = true) {
-	if ((WiFi.begin() == WL_CONNECT_FAILED)) // Si aucune paramétrage
-		myWPSStart();
+bool myWifiBeginWPS(bool BtnBoot2WPS = true) {
 	if (BtnBoot2WPS){
 		// pinMode(GPIO_NUM_0, INPUT_PULLUP);	// KO
 		// pinMode(GPIO_NUM_0, INPUT); 			// OK
 		gpio_set_direction(GPIO_NUM_0, GPIO_MODE_INPUT);
 		attachInterrupt(GPIO_NUM_0, myWifiWPSButton, CHANGE);
 	}
+	if ((WiFi.begin() != WL_CONNECT_FAILED)) // Si aucune paramétrage
+		return true;
+	myWPSStart();
+	return false;
 }
 
 bool loadIP(){
