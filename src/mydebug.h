@@ -5,13 +5,14 @@
 #include <WiFi.h>
 
 #if defined(DEBUG_SOCKET) || defined(DEBUG_SERIAL)
+	typedef std::function<void(char *data, size_t len)> DebugOnReceiveHandler;
+	DebugOnReceiveHandler _onReceiveHandler;
 	static bool _debugInitDone = false;
+
 	#if DEBUG_SOCKET
 		#include <AsyncTCP.h>
 		static AsyncServer _debugSocketServer(1504);
 		static AsyncClient* _debugSocketClient;
-		AcDataHandler _debugDataHandler = NULL;
-		std::function<void(void)> _onTCPClient = NULL;
 	#endif
 	#define DEBUGLOG(...) _debuglog(__VA_ARGS__)
 
@@ -66,6 +67,15 @@
 	static void DEBUGINIT(){
 		#ifdef DEBUG_SERIAL
 			Serial.begin(115200);
+			if (_onReceiveHandler)
+				Serial.onReceive([](){
+					size_t available = Serial.available();
+					if (available){
+						char buf[available];
+						Serial.read(buf,available);
+						_onReceiveHandler(buf,available);
+					}
+				});
 			DEBUGLOG("Debug serial ON\n");
 		#endif
 		#ifdef DEBUG_SOCKET
@@ -74,23 +84,20 @@
 							if(_debugSocketClient)
 								_debugSocketClient->stop();
 							_debugSocketClient = client;
-							if (_debugDataHandler)
-								_debugSocketClient->onData(_debugDataHandler);
+							if (_onReceiveHandler)
+								_debugSocketClient->onData([](void *arg, AsyncClient *client, void *data, size_t len){
+									_onReceiveHandler((char *)data, len);
+								});
 							_debugSocketClient->write("Welcome new socket\n");
-							if (_onTCPClient)
-								_onTCPClient();
 						}, NULL);
 					_debugSocketServer.begin();
-					// DEBUGLOG("Debug socket ON\n");
 				},arduino_event_id_t::ARDUINO_EVENT_WIFI_READY);
 		#endif
 		_debugInitDone = true;
 	}
 
-	static void DEBUGINIT(std::function<void(void)> onTCPClient){
-		#ifdef DEBUG_SOCKET
-			_onTCPClient = onTCPClient;
-		#endif
+	static void DEBUGINIT(DebugOnReceiveHandler handler){
+		_onReceiveHandler = handler;
 		DEBUGINIT();
 	}
 
@@ -110,14 +117,5 @@ static bool DEBUGHASCLIENT(){
 	#endif
 	return false;
 }
-
-#ifdef DEBUG_SOCKET
-static void DEBUGSETDATAHANDLER(AcDataHandler handler){
-	_debugDataHandler = handler;
-	if (_debugDataHandler)
-		if (_debugSocketClient)
-			_debugSocketClient->onData(_debugDataHandler);
-}
-#endif
 
 #endif // __MY_DEBUG_H__
