@@ -64,19 +64,30 @@
 			free(temp);
 	}
 
+#ifdef DEBUG_SERIAL
+TaskHandle_t _taskHandler;
+void onReceiveTask(void *pvParameters) {
+	size_t available = Serial.available();
+	if (available){
+		char buf[available + 1];
+		Serial.read(buf, available);
+		buf[available] = '\0';
+		_onReceiveHandler(buf, available);
+	}
+	_taskHandler = NULL;
+	vTaskDelete(NULL);
+}
+#endif
+
 	static void DEBUGINIT(){
 		#ifdef DEBUG_SERIAL
 			Serial.begin(115200);
 			if (_onReceiveHandler)
 				Serial.onReceive([](){
-					size_t available = Serial.available();
-					if (available){
-						char buf[available];
-						Serial.read(buf,available);
-						_onReceiveHandler(buf,available);
-					}
+					if (_taskHandler)
+						return;
+					xTaskCreate(onReceiveTask, "ReceiveTsk", 4096, NULL, 1, &_taskHandler);
 				});
-			DEBUGLOG("Debug serial ON\n");
 		#endif
 		#ifdef DEBUG_SOCKET
 			WiFi.onEvent([](WiFiEvent_t  event, WiFiEventInfo_t info ){
