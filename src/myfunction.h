@@ -192,8 +192,10 @@ void saveIP(){
 
 void resetIP(){
 	Preferences prefs;
-	if (prefs.begin(IPFILENAME,false))
+	if (prefs.begin(IPFILENAME,false)){
 		prefs.clear();
+		prefs.end();
+	}
 }
 
 #endif // __MY_FUNCTION_H__
